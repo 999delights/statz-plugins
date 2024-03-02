@@ -17,7 +17,6 @@ import time
 
 
 
-
 PRIORITY_PLAYER = ["GWEN", "ginny"]
 CHARACTER_NAMES = ["Drea", "Candace", "JUMPMAN", "MikeOxlong"]
 
