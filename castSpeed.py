@@ -15,100 +15,111 @@ import time
 
 
 
+speed_dir = r'C:\Users\andre\AppData\Local\Programs\phBot Testing\Plugins\info\tasks\speed'
 
 
-PRIORITY_PLAYER = ["GWEN", "ginny"]
-CHARACTER_NAMES = ["Drea", "Candace", "JUMPMAN", "MikeOxlong"]
 
+def get_inventory_job_mode(character_inventory):
+    try:
+        items = character_inventory['items']
+        if len(items) > 8:
+            item_at_index_8 = items[8]
+            item_name = item_at_index_8.get('name', '').lower()
 
+            if 'thief' in item_name:
+                return 'Thief'
+            elif 'hunter' in item_name:
+                return 'Hunter'
+            else:
+                return 'Merchant'
+        else:
+            return 'Not active'  # Index 8 is out of bounds or not enough items
+    except Exception as e:
+        return 'Not active'  # Handle any other errors or unexpected structure
 
 
 def event_loop():
 
     if get_character_data()['name'] != "":
         character_name = get_startup_data()['character']
-        
+        inventory = get_inventory() if get_inventory() is not None else {}
         party = get_party() if get_party() is not None else {}   
         training_area = get_training_area() if get_training_area() is not None else {}
         position = get_position() if get_position() is not None else {}
-        
-        cast_speed(character_name,position,training_area,party)
+        job_name = get_character_data()['job_name'] if get_character_data() is not None else ''
+        job_mode = get_inventory_job_mode(inventory)
+        cast_speed(character_name,position,training_area,party,job_name,job_mode)
        
 
 
 
-def cast_speed( name,position,training_area,party):
+def cast_speed( name,position,training_area,party,job_name,job_mode):
 
-    # Directory where JSON files are stored
-    speed_dir = r'C:\Users\andre\AppData\Local\Programs\phBot Testing\Plugins\info\tasks\speed'
+    
     
     # Check if the directory exists
     if not os.path.exists(speed_dir):
         log("The directory" + speed_dir +" does not exist!")
         return
-
-    # Loop through each file in the directory
-    for filename in os.listdir(speed_dir):
-        # Construct full file path
-        file_path = os.path.join(speed_dir, filename)
-       
-        # Check if it's a file and has a .json extension
-        if os.path.isfile(file_path) and filename.endswith(".json"):
+    
+    for server_name in os.listdir(speed_dir):
+        server_path = os.path.join(speed_dir, server_name)
+        if os.path.isdir(server_path):
+            # Iterate through each character JSON file in the server directory
+            # Loop through each file in the directory
+            for filename in os.listdir(server_path):
+                # Construct full file path
+                file_path = os.path.join(server_path, filename)
                 
-            # Extract character name from filename (removing the ".json" part)
-            character_name = filename.replace(".json", "")
-            
-            if character_name == name: 
-                
-                # Load the JSON content
-                with open(file_path, 'r') as file:
-                    data = json.load(file)
-                
-                    # Extract the required data
-                    checked = data["checked"]
-                    isBard =  data['isBard']
-                    
-                    if checked: # if speed is needed
+                # Check if it's a file and has a .json extension
+                if os.path.isfile(file_path) and filename.endswith(".json") and not filename.startswith('condition'):
+                     
+                    character_name = filename.replace(".json", "")
+                    if job_mode != "Not active":
+                        adjusted_name = job_name  # or f"{character_name} the {job_mode}" to append
+                    else:
+                        adjusted_name = name
+                    if adjusted_name == character_name: 
                         
-                        if not isBard:  # if not bard
+                        # Load the JSON content
+                        with open(file_path, 'r') as file:
+                            data = json.load(file)
+                            for key, values in data.items():
+                                checked = values.get('checked', False)
+                                item_list = values.get('list', [])
+                                march = values.get('march',"")
+                                is_bard = values.get('isBard', False)
+                                main = values.get('main', "")
                             
-                            is_not_found = search_speed()  
-                            
-                            if is_not_found:  # if any speed not found  -
-                                
-                                inParty = party
-                                
-                                if inParty is not Empty:    # if in a party
+                                if checked: # if speed is needed
                                     
-                                        # First check the priority player
-                                    for player_data in party.values():
-                                        player_name = player_data['name']
-                                        if player_name in PRIORITY_PLAYER:
-                                            x = player_data['x']
-                                            y = player_data['y']
-                                            region = player_data['region']
-                                            pos = {'x': x, 'y': y, 'region': region}
-                                            playerInTrainingArea = isInTrainingArea(pos, training_area)
+                                    if not is_bard:  # if not bard
+                                        
+                                        is_not_found = search_speed()  
+                                        
+                                        if is_not_found:  # if any speed not found  -
                                             
-                                            if playerInTrainingArea and isInTrainingArea(position, training_area): # if both in training area
-                                                
-                                                return phBotChat.Party("speeddeeps")
-                                                # return from the function as soon as priority player is found in the area
-                                    
-                                    # Then check the rest of the players
-                                    for player_data in party.values():
-                                        player_name = player_data['name']
-                                        if player_name in CHARACTER_NAMES:
-                                            x = player_data['x']
-                                            y = player_data['y']
-                                            region = player_data['region']
-                                            pos = {'x': x, 'y': y, 'region': region}
-                                            playerInTrainingArea = isInTrainingArea(pos, training_area)
+                                            inParty = party
                                             
-                                            if playerInTrainingArea and isInTrainingArea(position, training_area):
+                                            if inParty is not Empty:    # if in a party
                                                 
-                                                return phBotChat.Party("speeddeeps")
                                                 
+                                                    # First check the priority player
+                                                for player_data in party.values():
+                                                    player_name = player_data['name']
+                                                    if player_name in item_list:
+                                                        x = player_data['x']
+                                                        y = player_data['y']
+                                                        region = player_data['region']
+                                                        pos = {'x': x, 'y': y, 'region': region}
+                                                        playerInTrainingArea = isInTrainingArea(pos, training_area)
+                                                        
+                                                        if playerInTrainingArea and isInTrainingArea(position, training_area): # if both in training area
+                                                            
+                                                            return phBotChat.Party("speeddeeps")
+                                                            # return from the function as soon as priority player is found in the area
+                                                
+                                                        
                                     
 
 #Message type
@@ -144,64 +155,82 @@ def handle_chat(t, player, msg):
     type = str(messageType(t))
     sender = str(player)
     if type == "party":
-        name = get_startup_data()['character']
-        party = get_party() if get_party() is not None else {}   
-        training_area = get_training_area() if get_training_area() is not None else {}
-        position = get_position() if get_position() is not None else {}
-       
-        playerInTrainingArea = False  # Initialize this to False
         if message == "speeddeeps":
-            speed_dir = r'C:\Users\andre\AppData\Local\Programs\phBot Testing\Plugins\info\tasks\speed'
-            # Loop through each file in the directory
-            for filename in os.listdir(speed_dir):
-                # Construct full file path
-                file_path = os.path.join(speed_dir, filename)
-               
-                # Check if it's a file and has a .json extension
-                if os.path.isfile(file_path) and filename.endswith(".json"):
-                    
-                    # Extract character name from filename (removing the ".json" part)
-                    character_name = filename.replace(".json", "")
-                    
-                    if character_name == name: 
-                        
-                        # Load the JSON content
-                        with open(file_path, 'r') as file:
-                            data = json.load(file)
-                        
-                            # Extract the required data
-                            checked = data["checked"]
-                            players = data["players"]
-                            isBard =  data['isBard']
-                            if checked:     # if cast speed is checked 
-                                
-                                if isBard == True: # if is bard
-                                    inParty = party
-                                    if inParty is not Empty:      # if in party
-                                        if players is not Empty:          # if other players are prior
-                                            for player_data in inParty.values():
-                                                player_name = player_data['name']
-                                                
-                                                if player_name in players:
-                                                    
-                                                    x = player_data['x']
-                                                    y = player_data['y']
-                                                    region = player_data['region']
-                                                    
-                                                    pos = {'x': x, 'y': y, 'region': region}
-                                                    
-                                                    playerInTrainingArea = isInTrainingArea(pos, training_area)
-                                                    if playerInTrainingArea:
-                                                        break  # Exit the loop once we find a player in the training area
-                                                        
-                                            if not playerInTrainingArea:     
-                                               
-                                                inTrainingArea = isInTrainingArea(position, training_area)
-                                              
-                                                if inTrainingArea:
-                                                    start_script('recast,Swing March')
 
-                                                
+
+
+            name = get_startup_data()['character']
+            job_name = get_character_data()['job_name'] if get_character_data() is not None else ''
+            party = get_party() if get_party() is not None else {}   
+            training_area = get_training_area() if get_training_area() is not None else {}
+            position = get_position() if get_position() is not None else {}
+            playerInTrainingArea = False  # Initialize this to False
+            inventory = get_inventory() if get_inventory() is not None else {}
+            job_mode = get_inventory_job_mode(inventory)
+
+
+            # Loop through each file in the directory
+            for server_name in os.listdir(speed_dir):
+                server_path = os.path.join(speed_dir, server_name)
+                if os.path.isdir(server_path):
+                    for filename in os.listdir(server_path):
+                        # Construct full file path
+                        file_path = os.path.join(server_path, filename)
+                    
+                       
+                        # Check if it's a file and has a .json extension
+                        if os.path.isfile(file_path) and filename.endswith(".json") and not filename.startswith('condition'):
+                            
+                            # Extract character name from filename (removing the ".json" part)
+                            character_name = filename.replace(".json", "")
+                           
+                            if job_mode != "Not active":
+                                adjusted_name = job_name  # or f"{character_name} the {job_mode}" to append
+                            else:
+                                adjusted_name = character_name
+                            if adjusted_name == name: 
+                                
+                                # Load the JSON content
+                                with open(file_path, 'r') as file:
+                                    data = json.load(file)
+                                    for key, values in data.items():
+                                        checked = values.get('checked', False)
+                                        item_list = values.get('list', [])
+                                        march = values.get('march',"")
+                                        is_bard = values.get('isBard', False)
+                                        main = values.get('main', "")
+                                        if checked:     # if cast speed is checked 
+                                            
+                                            if is_bard == True: # if is bard
+                                                inParty = party
+                                                if inParty is not Empty: 
+                                                    if main == "Main":   # if in party
+                                                        phBotChat.Party("ok")
+                                                        start_script(f'recast,{march}')
+                                                    else:
+                                                        if item_list is not Empty:          # if other players are prior
+                                                            for player_data in inParty.values():
+                                                                player_name = player_data['name']
+                                                                
+                                                                if player_name in item_list:
+                                                                    
+                                                                    x = player_data['x']
+                                                                    y = player_data['y']
+                                                                    region = player_data['region']
+                                                                    
+                                                                    pos = {'x': x, 'y': y, 'region': region}
+                                                                    
+                                                                    playerInTrainingArea = isInTrainingArea(pos, training_area)
+                                                                    if not playerInTrainingArea:
+                                                                      inTrainingArea = isInTrainingArea(position, training_area) 
+                                                                      if inTrainingArea:
+                                                                        phBotChat.Party("ok")
+                                                                        start_script(f'recast,{march}')
+                                                            
+                                                            
+                                                                
+
+                                                    
 
                                 
                     
@@ -232,16 +261,6 @@ def search_speed():
             return False
 
     return True
-
-
-
-
-
-
-
-
-
-
 
 
 

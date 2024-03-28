@@ -9,10 +9,21 @@ import urllib.parse  # Add this line to import urllib.parse
 
 
 ready = True
+last_update_date = None
 
+#1st function 
+def create_info_directory():
+    directory = 'Plugins/info'
+    if not os.path.exists(directory):
+        os.makedirs(directory) 
+
+
+def create_messages_directory():
+    directory = 'Plugins/info/messages'
+    if not os.path.exists(directory):
+        os.makedirs(directory) 
 
 def create_directories():
-
      # Main directory path
     main_directory_path = r'C:\Users\andre\AppData\Local\Programs\phBot Testing\Plugins\info\messages'
     # Additional directories
@@ -222,7 +233,7 @@ def update_messages_with_threshold():
 
         # Iterate through the normal messages for the character
         if f"{character_name}/{server_name}" in normal_info_data:
-            for msg in normal_info_data[character_name]['msgs']:
+            for msg in normal_info_data[f"{character_name}/{server_name}"]['msgs']:
                 date_str = msg['date']
                 formatted_date = date_str.split(" ")[0]
                 # Compare the date strings with the threshold date
@@ -370,7 +381,7 @@ def process_messages_for_character():
     character_name = get_character_data()['name']
     server_name = get_character_data()['server']
 
-
+    
     # Define the directory path for the server's message directory
     server_dir = 'Plugins/info/messages/LIVE/' + server_name
 
@@ -382,20 +393,20 @@ def process_messages_for_character():
     base_dir = r'C:\Users\andre\AppData\Local\Programs\phBot Testing\Plugins\info\messages'
 
     # Construct the path to the character's message directory within the server's directory
-    character_message_dir = os.path.join(base_dir, 'LIVE', server_name, character_name)
+    character_events_dir = os.path.join(base_dir, 'LIVE', server_name, character_name)
 
     
     # Check if the character's message directory exists
-    if os.path.exists(character_message_dir):
+    if os.path.exists(character_events_dir):
         # Get a list of all JSON files in the directory
-        json_files = [f for f in os.listdir(character_message_dir) if f.endswith('.json')]
+        json_files = [f for f in os.listdir(character_events_dir) if f.endswith('.json')]
         
         # Sort the JSON files by modification time (oldest first)
-        json_files.sort(key=lambda x: os.path.getmtime(os.path.join(character_message_dir, x)))
+        json_files.sort(key=lambda x: os.path.getmtime(os.path.join(character_events_dir, x)))
 
         if json_files:
             # Get the path to the oldest JSON file
-            oldest_json_file = os.path.join(character_message_dir, json_files[0])
+            oldest_json_file = os.path.join(character_events_dir, json_files[0])
 
             if os.path.exists(oldest_json_file):  # Check if the file still exists
                 # Read the JSON data from the file
@@ -470,14 +481,20 @@ def handle_chat(t, player, msg):
 
 # Event loop
 def event_loop():
-    global ready
+    global ready, last_update_date
     if get_character_data()['name'] != "":
-    
+        # Get today's date (without time part)
+        today = datetime.now().date()
+        
+        # Check if update_messages_with_threshold has not been done today
+        if last_update_date is None or last_update_date != today:
+            update_messages_with_threshold()
+            last_update_date = today  # Update the last update date to today    
         if ready == True:
             
             ready = False
             process_messages_for_character()
-            update_messages_with_threshold()
+             
         # ... (other event loop code)
     
 

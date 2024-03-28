@@ -46,7 +46,7 @@ def create_info_directory():
     if not os.path.exists(directory):
         os.makedirs(directory) 
 
-# Function to create the "info" directory if it doesn't exist
+# Function to create the "events" directory if it doesn't exist
 def create_info_events_directory():
     directory = 'Plugins/info/events'
     if not os.path.exists(directory):
@@ -124,20 +124,20 @@ def disconnected():
 
 
 
-def finished():
-    character_name = get_startup_data()['character']
-    server_name = get_startup_data()['server']
-    event_name = 'EVENT_DISCONNECTED'
-    date = get_current_datetime_str()
-    filename = ritual()
+# def finished():
+#     character_name = get_startup_data()['character']
+#     server_name = get_startup_data()['server']
+#     event_name = 'EVENT_DISCONNECTED'
+#     date = get_current_datetime_str()
+#     filename = ritual()
 
-    event_data = {}
-    # Create a dictionary with event name as key and data as value
+#     event_data = {}
+#     # Create a dictionary with event name as key and data as value
     
-    event_data[f"{character_name}/{server_name}"] = {'event_name': event_name, 'date': date, 'data': ''}  
-    # Write the dictionary to a JSON file
-    with open(filename, 'w') as file:
-        json.dump(event_data, file, indent=4)
+#     event_data[f"{character_name}/{server_name}"] = {'event_name': event_name, 'date': date, 'data': ''}  
+#     # Write the dictionary to a JSON file
+#     with open(filename, 'w') as file:
+#         json.dump(event_data, file, indent=4)
 
 
 
