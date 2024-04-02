@@ -21,6 +21,8 @@ MaxQueue = ''
 CurrentQueue = ''
 
 
+
+
 #1st function 
 def create_info_directory():
     directory = 'Plugins/info'
@@ -63,8 +65,42 @@ def handle_joymax(opcode, data):
 
 
 
+def check_job_mode(speed_dir, name, server, job_mode):
+    def check_file(file_path):
+        try:
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+                for key, values in data.items():
+                    character_name, server_name = key.split('/')
+                    if character_name == name and server_name == server:
+                        file_job_mode = values.get('jobMode', None)
+                        isChecked = values.get('checked', None)
+                        if isChecked:
+                            if file_job_mode is None:
+                                return "Not_found"
+                            elif job_mode == file_job_mode:
+                                return "Same"
+                            elif job_mode != file_job_mode and file_job_mode != "" and job_mode != "":
+                                return "Not_same"
+                            else:
+                                return "Not_found"
+                        else:
+                            return "Not_found"
+        except (IOError, json.JSONDecodeError):
+            print(f"aaaError reading or parsing file: {file_path}")
+        return None
 
+    for server_name in os.listdir(speed_dir):
+        server_path = os.path.join(speed_dir, server_name)
+        if os.path.isdir(server_path):
+            for filename in os.listdir(server_path):
+                file_path = os.path.join(server_path, filename)
+                if os.path.isfile(file_path) and filename.endswith(".json"):
+                    result = check_file(file_path)
+                    if result is not None:
+                        return result
 
+    return "Not_found"  # Default return value if no matching file is found or if job mode is empty
 
 
 
@@ -74,19 +110,36 @@ def disconnected():
     CurrentQueue = ''
 
 
+def get_inventory_job_mode(character_inventory):
+    try:
+        items = character_inventory['items']
+        if len(items) > 8:
+            item_at_index_8 = items[8]
+            item_name = item_at_index_8.get('name', '').lower()
 
+            if 'thief' in item_name:
+                return 'Thief'
+            elif 'hunter' in item_name:
+                return 'Hunter'
+            else:
+                return 'Merchant'
+        else:
+            return 'Not active'  # Index 8 is out of bounds or not enough items
+    except Exception as e:
+        return 'Not active'  # Handle any other errors or unexpected structure
 
 def event_loop():
     global MaxQueue
     global CurrentQueue
-    global current_datetime_str
-    character_name = get_startup_data()['character']
-    server_name = get_startup_data()['server']
-
+   
+    speed_dir = r'C:\Users\andre\AppData\Local\Programs\phBot Testing\Plugins\info\tasks\speed'
+    name = get_startup_data()['character']
+    server = get_startup_data()['server']
+    
     create_info_statz_directory() # Create the "info" directory if it doesn't exist
-    create_server_directory(server_name)
+    create_server_directory(server)
 
-    filename = 'Plugins/info/statz/'+ server_name + '/info_'  + character_name +'.json'
+    filename = 'Plugins/info/statz/'+ server + '/info_'  + name +'.json'
    
 
     if os.path.exists(filename) and os.path.getsize(filename) > 0:
@@ -94,7 +147,7 @@ def event_loop():
             try:
                 info_data = json.load(file)
             except json.JSONDecodeError:
-                log("Error decoding JSON from file: " + filename)
+                log("aaError decoding JSON from file: " + filename)
                 info_data = {}
     else:
         info_data = {}
@@ -134,7 +187,7 @@ def event_loop():
     
     exp_ratio = get_character_data()['exp_ratio'] if get_character_data() is not None else 0
     job_type = get_character_data()['job_type'] if get_character_data() is not None else ''
-
+    
 
 
 
@@ -170,7 +223,7 @@ def event_loop():
     job_max_exp = get_character_data()['job_max_exp'] if get_character_data() is not None else 0.0
     zone_name = get_character_data()['zone_name'] if get_character_data() is not None else ''
     death_count = get_character_data()['death_count'] if get_character_data() is not None else 0
-    
+    manager = get_character_data()['manager'] if get_character_data() is not None else False
    
     botting = get_character_data()['botting'] if get_character_data() is not None else False
     job_type =  get_character_data()['job_type'] if get_character_data() is not None else ''
@@ -187,7 +240,11 @@ def event_loop():
     sp_hour = get_character_data()['sp_hour'] if get_character_data() is not None else 0.0
     sp_gained = get_character_data()['sp_gained'] if get_character_data() is not None else 0.0
     rare_drop_count = get_character_data()['rare_drop_count'] if get_character_data() is not None else 0
+    kill_count = get_character_data()['kill_count'] if get_character_data() is not None else 0
+    job_mode = get_inventory_job_mode(inventory)
+    checkJob = check_job_mode(speed_dir,name,server,job_mode)
     
+
     if get_character_data()['name'] != '':
         MaxQueue = ''
         
@@ -199,9 +256,9 @@ def event_loop():
 
     queue_data = {'MaxQueue': str(MaxQueue), 'CurrentQueue':str(CurrentQueue)}
 
-    info_data[f"{character_name}/{server_name}"] = {
-        'name' : character_name,
-        'server': server_name,
+    info_data[f"{name}/{server}"] = {
+        'name' : name,
+        'server': server,
         'botting': botting,
         'dead': dead,
         'death_count':death_count,   
@@ -246,10 +303,10 @@ def event_loop():
         'pouch':pouch, 
         'academy':academy, 
         "monsters": monsters, 
-        
-       
-       
-        
+        'job_mode': job_mode,
+        'checkJob': checkJob,
+        'manager': manager,
+        'kill_count':kill_count,
         
         'rare_drop': rare_drop_count,
 
@@ -272,15 +329,15 @@ def event_loop():
         'job_type':job_type
     }   
     x_data = {}
-    x_data[f"{character_name}/{server_name}"] = { 'character_data' : character_data}
+    x_data[f"{name}/{server}"] = { 'character_data' : character_data}
 
 
     # Export the updated dictionary to the JSON file for each character in the info dir 
-    with open('Plugins/info/statz/' + server_name + '/info_' + character_name +'.json', 'w') as file:     
+    with open('Plugins/info/statz/' + server + '/info_' + name +'.json', 'w') as file:     
         json.dump(info_data, file, indent=4)
 
        # Export the updated dictionary to the JSON file for each character in the info dir 
-    with open('Plugins/info/info_' + character_name +'.json', 'w') as file:     
+    with open('Plugins/info/info_' + name +'.json', 'w') as file:     
         json.dump(x_data, file, indent=4)
 
 
